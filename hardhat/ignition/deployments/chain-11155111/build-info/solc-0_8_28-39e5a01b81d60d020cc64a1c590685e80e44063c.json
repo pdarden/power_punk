@@ -1,0 +1,39 @@
+{
+  "_format": "hh3-sol-build-info-1",
+  "id": "solc-0_8_28-39e5a01b81d60d020cc64a1c590685e80e44063c",
+  "solcVersion": "0.8.28",
+  "solcLongVersion": "0.8.28+commit.7893614a",
+  "userSourceNameMap": {
+    "contracts/ProjectRegistry.sol": "project/contracts/ProjectRegistry.sol"
+  },
+  "input": {
+    "language": "Solidity",
+    "settings": {
+      "evmVersion": "cancun",
+      "optimizer": {
+        "enabled": true,
+        "runs": 200
+      },
+      "outputSelection": {
+        "*": {
+          "": [
+            "ast"
+          ],
+          "*": [
+            "abi",
+            "evm.bytecode",
+            "evm.deployedBytecode",
+            "evm.methodIdentifiers",
+            "metadata"
+          ]
+        }
+      },
+      "remappings": []
+    },
+    "sources": {
+      "project/contracts/ProjectRegistry.sol": {
+        "content": "// SPDX-License-Identifier: MIT\npragma solidity ^0.8.28;\n\ncontract ProjectRegistry {\n    event ProjectCreated(\n        uint256 indexed projectId,\n        address indexed creator,\n        string ensName,\n        address escrow,\n        string metaURI\n    );\n\n    struct Project {\n        address creator;\n        address escrow;\n        string ensName;\n        string metaURI;\n    }\n\n    uint256 public nextId;\n    mapping(uint256 => Project) private projects;\n\n    function createProject(\n        string calldata ensName,\n        address escrow,\n        string calldata metaURI\n    ) external returns (uint256 id) {\n        require(escrow != address(0), \"escrow=0\");\n        id = ++nextId;\n        projects[id] = Project(msg.sender, escrow, ensName, metaURI);\n        emit ProjectCreated(id, msg.sender, ensName, escrow, metaURI);\n    }\n\n    function getProject(uint256 id) external view returns (Project memory) {\n        Project memory p = projects[id];\n        require(p.escrow != address(0), \"not found\");\n        return p;\n    }\n}\n"
+      }
+    }
+  }
+}
