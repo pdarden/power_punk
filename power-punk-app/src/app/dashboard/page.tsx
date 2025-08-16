@@ -135,15 +135,15 @@ export default function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-3xl font-bold mb-8">My Dashboard</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-8">My Dashboard</h1>
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Funded</p>
-                <p className="text-2xl font-bold">{formatCurrency(calculateTotalFunded())}</p>
+                <p className="text-sm text-gray-700">Total Funded</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(calculateTotalFunded())}</p>
               </div>
               <Wallet className="w-8 h-8 text-blue-500" />
             </div>
@@ -152,8 +152,8 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Projects Created</p>
-                <p className="text-2xl font-bold">{userProjects.length}</p>
+                <p className="text-sm text-gray-700">Projects Created</p>
+                <p className="text-2xl font-bold text-gray-900">{userProjects.length}</p>
               </div>
               <TrendingUp className="w-8 h-8 text-green-500" />
             </div>
@@ -162,8 +162,8 @@ export default function DashboardPage() {
           <div className="bg-white rounded-lg shadow p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-gray-500">Total Referrals</p>
-                <p className="text-2xl font-bold">{calculateTotalReferrals()}</p>
+                <p className="text-sm text-gray-700">Total Referrals</p>
+                <p className="text-2xl font-bold text-gray-900">{calculateTotalReferrals()}</p>
               </div>
               <Users className="w-8 h-8 text-purple-500" />
             </div>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">You haven't created any projects yet</p>
+                  <p className="text-gray-700 mb-4">You haven&apos;t created any projects yet</p>
                   <Link href="/projects/create">
                     <Button>Create Your First Project</Button>
                   </Link>
@@ -260,7 +260,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <p className="text-gray-500 mb-4">You haven't funded any projects yet</p>
+                  <p className="text-gray-700 mb-4">You haven&apos;t funded any projects yet</p>
                   <Link href="/">
                     <Button>Explore Projects</Button>
                   </Link>
@@ -272,8 +272,8 @@ export default function DashboardPage() {
 
         {/* Referral Section */}
         <div className="mt-8 bg-white rounded-lg shadow p-6">
-          <h2 className="text-xl font-bold mb-4">Referral Program</h2>
-          <p className="text-gray-600 mb-4">
+          <h2 className="text-xl font-bold text-gray-900 mb-4">Referral Program</h2>
+          <p className="text-gray-700 mb-4">
             Share your referral link to earn rewards when others contribute to projects
           </p>
           <div className="flex gap-4">
@@ -281,7 +281,7 @@ export default function DashboardPage() {
               type="text"
               readOnly
               value="https://powerpunk.xyz/ref/your_wallet_address"
-              className="flex-1 px-3 py-2 border rounded-lg bg-gray-50"
+              className="flex-1 px-3 py-2 border border-gray-900 rounded-lg bg-gray-50 text-gray-900"
             />
             <Button>Copy Link</Button>
           </div>

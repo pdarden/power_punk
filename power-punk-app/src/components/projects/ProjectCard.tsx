@@ -23,7 +23,7 @@ export default function ProjectCard({ campaign, projectData }: ProjectCardProps)
       <div className="p-6">
         <div className="flex items-start justify-between mb-4">
           <div>
-            <h3 className="text-xl font-bold mb-1">
+            <h3 className="text-xl font-bold text-gray-900 mb-1">
               {projectData?.projectTitle || 'Loading...'}
             </h3>
             <span className="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
@@ -40,30 +40,30 @@ export default function ProjectCard({ campaign, projectData }: ProjectCardProps)
           </span>
         </div>
 
-        <p className="text-gray-600 mb-4 line-clamp-2">
+        <p className="text-gray-700 mb-4 line-clamp-2">
           {projectData?.description || 'Loading project details...'}
         </p>
 
         <div className="space-y-2 mb-4">
-          <div className="flex items-center text-sm text-gray-500">
+          <div className="flex items-center text-sm text-gray-700">
             <MapPin className="w-4 h-4 mr-2" />
             {campaign.location.region}, {campaign.location.country}
           </div>
           
-          <div className="flex items-center text-sm text-gray-500">
+          <div className="flex items-center text-sm text-gray-700">
             <Users className="w-4 h-4 mr-2" />
             {contributorCount} contributors
           </div>
 
           {projectData && (
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-gray-700">
               <Target className="w-4 h-4 mr-2" />
               Goal: {formatCurrency(projectData.goalAmount)}
             </div>
           )}
 
           {projectData?.timeline && (
-            <div className="flex items-center text-sm text-gray-500">
+            <div className="flex items-center text-sm text-gray-700">
               <Clock className="w-4 h-4 mr-2" />
               Ends: {new Date(projectData.timeline.endDate).toLocaleDateString()}
             </div>
@@ -71,7 +71,7 @@ export default function ProjectCard({ campaign, projectData }: ProjectCardProps)
         </div>
 
         <div className="mb-4">
-          <div className="flex justify-between text-sm mb-1">
+          <div className="flex justify-between text-sm text-gray-900 font-medium mb-1">
             <span>Progress</span>
             <span>{progress.toFixed(1)}%</span>
           </div>
@@ -84,7 +84,7 @@ export default function ProjectCard({ campaign, projectData }: ProjectCardProps)
         </div>
 
         <Link href={`/projects/${campaign.id}`}>
-          <Button className="w-full">
+          <Button className="w-full bg-gray-900 hover:bg-gray-800 text-white font-semibold">
             View Project
           </Button>
         </Link>
