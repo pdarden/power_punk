@@ -10,11 +10,10 @@ import {
   encodeUSDCApproval,
   encodeContribution,
   encodeProjectCreation,
-  COOP_ESCROW_BYTECODE,
 } from "@/contracts/coopEscrow";
-import { encodeFunctionData, createPublicClient, http } from "viem";
+import { createPublicClient, http, encodeAbiParameters } from "viem";
 import { base, baseSepolia } from "viem/chains";
-import { COOP_ESCROW_ABI } from "@/contracts/coopEscrow";
+import CoopEscrowArtifact from "../../../../hardhat/artifacts/contracts/CoopEscrow.sol/CoopEscrow.json";
 
 interface CreateProjectSmartContractProps {
   projectData: {
@@ -403,28 +402,45 @@ export default function CreateProjectSmartContract({
 
     const networkConfig = getNetworkConfig();
 
-    // Constructor parameters (following Integration.ts pattern - no creator contribution in constructor)
-    const constructorArgs = [
-      networkConfig.usdcAddress, // token
-      evmAddress, // beneficiary (project creator)
-      parseUSDCAmount(projectData.goalAmount), // goal
-      Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // deadline (30 days)
-      parseUSDCAmount(projectData.initialUnitCost), // minContribution
+    // Constructor parameters - ensure correct types for the ABI
+    const constructorArgs: readonly [
+      `0x${string}`,
+      `0x${string}`,
+      bigint,
+      bigint,
+      bigint,
+      bigint,
+    ] = [
+      networkConfig.usdcAddress as `0x${string}`, // token (address)
+      evmAddress as `0x${string}`, // beneficiary (address)
+      parseUSDCAmount(projectData.goalAmount), // goal (uint256)
+      BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60), // deadline (uint64)
+      parseUSDCAmount(projectData.initialUnitCost), // minContribution (uint256)
       BigInt(0), // creatorContribution (0 in constructor, separate tx later)
     ];
 
     console.log("Constructor args:", constructorArgs);
 
-    // For contract deployment with viem, we use encodeDeployData to combine bytecode with constructor args
-    const deployData = encodeFunctionData({
-      abi: COOP_ESCROW_ABI,
-      args: constructorArgs,
-    });
+    // For contract deployment, encode constructor parameters using the ABI
+    const constructorData = encodeAbiParameters(
+      [
+        { type: "address" }, // token
+        { type: "address" }, // beneficiary
+        { type: "uint256" }, // goal
+        { type: "uint64" }, // deadline
+        { type: "uint256" }, // minContribution
+        { type: "uint256" }, // creatorContribution
+      ],
+      constructorArgs,
+    );
+
+    // Get bytecode from hardhat artifact
+    const bytecode = CoopEscrowArtifact.bytecode as `0x${string}`;
 
     // Create deployment transaction
     return {
       to: undefined, // Contract deployment
-      data: (COOP_ESCROW_BYTECODE + deployData.slice(10)) as `0x${string}`, // Remove function selector (first 10 chars) and append constructor data
+      data: (bytecode + constructorData.slice(2)) as `0x${string}`, // Append constructor data without 0x prefix
       gas: BigInt(3000000), // Increased gas for deployment
       chainId: networkConfig.chainId,
       type: "eip1559" as const,
