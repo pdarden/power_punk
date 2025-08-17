@@ -11,7 +11,7 @@ import {
   encodeContribution,
   encodeProjectCreation,
 } from "@/contracts/coopEscrow";
-import { createPublicClient, http, encodeAbiParameters } from "viem";
+import { createPublicClient, http, encodeDeployData } from "viem";
 import { base, baseSepolia } from "viem/chains";
 import CoopEscrowArtifact from "../../../../hardhat/artifacts/contracts/CoopEscrow.sol/CoopEscrow.json";
 
@@ -421,27 +421,20 @@ export default function CreateProjectSmartContract({
 
     console.log("Constructor args:", constructorArgs);
 
-    // For contract deployment, encode constructor parameters using the ABI
-    const constructorData = encodeAbiParameters(
-      [
-        { type: "address" }, // token
-        { type: "address" }, // beneficiary
-        { type: "uint256" }, // goal
-        { type: "uint64" }, // deadline
-        { type: "uint256" }, // minContribution
-        { type: "uint256" }, // creatorContribution
-      ],
-      constructorArgs,
-    );
+    // Use viem's encodeDeployData for proper contract deployment
+    const deploymentData = encodeDeployData({
+      abi: CoopEscrowArtifact.abi,
+      bytecode: CoopEscrowArtifact.bytecode as `0x${string}`,
+      args: constructorArgs,
+    });
 
-    // Get bytecode from hardhat artifact
-    const bytecode = CoopEscrowArtifact.bytecode as `0x${string}`;
+    console.log("Deployment data length:", deploymentData.length);
+    console.log("Deployment data preview:", deploymentData.slice(0, 42));
 
-    // Create deployment transaction
     return {
       to: undefined, // Contract deployment
-      data: (bytecode + constructorData.slice(2)) as `0x${string}`, // Append constructor data without 0x prefix
-      gas: BigInt(3000000), // Increased gas for deployment
+      data: deploymentData,
+      gas: BigInt(3000000), // Use BigInt like other transactions
       chainId: networkConfig.chainId,
       type: "eip1559" as const,
     };
@@ -478,11 +471,22 @@ export default function CreateProjectSmartContract({
 
         // Deploy escrow contract (step 1)
         const deploymentTx = createEscrowDeploymentTransaction();
+        console.log("Deployment transaction:", {
+          to: deploymentTx.to,
+          data: deploymentTx.data?.slice(0, 100) + "...", // First 100 chars of data
+          gas: deploymentTx.gas,
+          chainId: deploymentTx.chainId,
+          dataLength: deploymentTx.data?.length,
+        });
+
+        const networkConfig = getNetworkConfig();
+        const networkName =
+          networkConfig.chainId === 8453 ? "base-mainnet" : "base-sepolia";
 
         const { transactionHash: deployHash } = await sendEvmTransaction({
           transaction: deploymentTx,
           evmAccount: evmAddress,
-          network: "base-sepolia",
+          network: networkName,
         });
 
         setDeploymentHash(deployHash);
