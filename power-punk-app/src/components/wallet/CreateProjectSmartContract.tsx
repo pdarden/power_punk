@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useSendEvmTransaction, useEvmAddress } from "@coinbase/cdp-hooks";
-import { useWaitForTransactionReceipt } from "wagmi";
+import { TransactionReceipt } from "viem";
 import {
   parseUSDCAmount,
   getNetworkConfig,
@@ -12,8 +12,9 @@ import {
   encodeProjectCreation,
   COOP_ESCROW_BYTECODE,
 } from "@/contracts/coopEscrow";
-import { encodeFunctionData, encodeDeployData } from "viem";
-import { COOP_ESCROW_ABI, PROJECT_REGISTRY_ABI } from "@/contracts/coopEscrow";
+import { encodeFunctionData, createPublicClient, http } from "viem";
+import { base, baseSepolia } from "viem/chains";
+import { COOP_ESCROW_ABI } from "@/contracts/coopEscrow";
 
 interface CreateProjectSmartContractProps {
   projectData: {
@@ -28,9 +29,9 @@ interface CreateProjectSmartContractProps {
       lng: string;
     };
     projectType: string;
-    timeline: any;
-    milestones: any[];
-    costCurve: any;
+    timeline: Record<string, unknown>;
+    milestones: Record<string, unknown>[];
+    costCurve: Record<string, unknown>;
   };
   onSuccess?: (transactionHash: string, projectId: string) => void;
 }
@@ -60,127 +61,101 @@ export default function CreateProjectSmartContract({
   const [ensName, setEnsName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: deploymentReceipt } = useWaitForTransactionReceipt({
-    hash: deploymentHash as `0x${string}`,
-    query: {
-      enabled: !!deploymentHash && step === "deploy",
-    },
-  });
+  // Placeholder functions for future implementation
+  const uploadToWalrus = useCallback(async (): Promise<string> => {
+    // TODO: Implement Walrus upload
+    return `walrus_${Date.now()}`;
+  }, []);
 
-  const { data: approvalReceipt } = useWaitForTransactionReceipt({
-    hash: approvalHash as `0x${string}`,
-    query: {
-      enabled: !!approvalHash && step === "approve",
-    },
-  });
+  const registerENS = useCallback(async (): Promise<string> => {
+    // TODO: Implement ENS registration
+    return `${projectData.projectTitle.toLowerCase().replace(/\s+/g, "-")}.eth`;
+  }, [projectData.projectTitle]);
 
-  const { data: contributionReceipt } = useWaitForTransactionReceipt({
-    hash: contributionHash as `0x${string}`,
-    query: {
-      enabled: !!contributionHash && step === "contribute",
-    },
-  });
+  // Receipt states for tracking deployment progress
+  const [, setDeploymentReceipt] = useState<TransactionReceipt | null>(null);
+  const [, setApprovalReceipt] = useState<TransactionReceipt | null>(null);
+  const [, setContributionReceipt] = useState<TransactionReceipt | null>(null);
+  const [, setRegistrationReceipt] = useState<TransactionReceipt | null>(null);
 
-  const { data: registrationReceipt } = useWaitForTransactionReceipt({
-    hash: registrationHash as `0x${string}`,
-    query: {
-      enabled: !!registrationHash && step === "register",
+  // Helper function to wait for transaction receipt
+  const waitForTransactionReceipt = useCallback(
+    async (hash: string): Promise<TransactionReceipt | null> => {
+      const networkConfig = getNetworkConfig();
+      const publicClient = createPublicClient({
+        chain: networkConfig.chainId === 8453 ? base : baseSepolia,
+        transport: http(networkConfig.rpcUrl),
+      });
+
+      let receipt: TransactionReceipt | null = null;
+      let attempts = 0;
+      const maxAttempts = 60; // 5 minutes with 5 second intervals
+
+      while (!receipt && attempts < maxAttempts) {
+        try {
+          receipt = await publicClient.getTransactionReceipt({
+            hash: hash as `0x${string}`,
+          });
+          if (receipt) break;
+        } catch {
+          // Transaction not yet mined, continue waiting
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, 5000)); // Wait 5 seconds
+        attempts++;
+      }
+
+      return receipt;
     },
-  });
+    [],
+  );
 
   const projectCreationFee = projectData.initialUnitCost;
   const requiredContributions = Math.ceil(
     projectData.goalAmount / projectData.initialUnitCost,
   );
 
-  // Handle deployment receipt
-  useEffect(() => {
-    if (
-      deploymentReceipt &&
-      deploymentReceipt.contractAddress &&
-      step === "deploy"
-    ) {
-      const contractAddress = deploymentReceipt.contractAddress;
-      setEscrowAddress(contractAddress);
-      console.log("Contract deployed at:", contractAddress);
+  const handleUSDCApproval = useCallback(
+    async (contractAddress: string) => {
+      if (!evmAddress) return;
 
-      // Move to approval step
-      setStep("approve");
-      handleUSDCApproval(contractAddress);
-    }
-  }, [deploymentReceipt, step]);
+      try {
+        const networkConfig = getNetworkConfig();
+        const approvalAmount = parseUSDCAmount(projectCreationFee);
 
-  // Handle approval receipt
-  useEffect(() => {
-    if (approvalReceipt && step === "approve" && escrowAddress) {
-      console.log("USDC approval confirmed");
+        console.log("Approving USDC spending...", {
+          spender: contractAddress,
+          amount: approvalAmount.toString(),
+        });
 
-      // Move to contribution step
-      setStep("contribute");
-      handleCreatorContribution();
-    }
-  }, [approvalReceipt, step, escrowAddress]);
+        const approvalTx = {
+          to: networkConfig.usdcAddress as `0x${string}`,
+          data: encodeUSDCApproval(
+            contractAddress,
+            approvalAmount,
+          ) as `0x${string}`,
+          gas: BigInt(65000),
+          chainId: networkConfig.chainId,
+          type: "eip1559" as const,
+        };
 
-  // Handle contribution receipt
-  useEffect(() => {
-    if (contributionReceipt && step === "contribute" && escrowAddress) {
-      console.log("Creator contribution confirmed");
+        const { transactionHash } = await sendEvmTransaction({
+          transaction: approvalTx,
+          evmAccount: evmAddress,
+          network: "base-sepolia",
+        });
 
-      // Move to registration step
-      setStep("register");
-      handleProjectRegistration();
-    }
-  }, [contributionReceipt, step, escrowAddress]);
+        setApprovalHash(transactionHash);
+      } catch (error) {
+        console.error("USDC approval failed:", error);
+        setError("Failed to approve USDC spending. Please try again.");
+        setIsPending(false);
+      }
+    },
+    [evmAddress, projectCreationFee, sendEvmTransaction],
+  );
 
-  // Handle registration receipt
-  useEffect(() => {
-    if (registrationReceipt && step === "register" && escrowAddress) {
-      console.log("Project registration confirmed");
-
-      // Move to complete step and save to database
-      setStep("complete");
-      saveProject();
-    }
-  }, [registrationReceipt, step, escrowAddress]);
-
-  const handleUSDCApproval = async (contractAddress: string) => {
-    if (!evmAddress) return;
-
-    try {
-      const networkConfig = getNetworkConfig();
-      const approvalAmount = parseUSDCAmount(projectCreationFee);
-
-      console.log("Approving USDC spending...", {
-        spender: contractAddress,
-        amount: approvalAmount.toString(),
-      });
-
-      const approvalTx = {
-        to: networkConfig.usdcAddress as `0x${string}`,
-        data: encodeUSDCApproval(
-          contractAddress,
-          approvalAmount,
-        ) as `0x${string}`,
-        gas: BigInt(65000),
-        chainId: networkConfig.chainId,
-        type: "eip1559" as const,
-      };
-
-      const { transactionHash } = await sendEvmTransaction({
-        transaction: approvalTx,
-        evmAccount: evmAddress,
-        network: "base-sepolia" as any,
-      });
-
-      setApprovalHash(transactionHash);
-    } catch (error) {
-      console.error("USDC approval failed:", error);
-      setError("Failed to approve USDC spending. Please try again.");
-      setIsPending(false);
-    }
-  };
-
-  const handleCreatorContribution = async () => {
+  const handleCreatorContribution = useCallback(async () => {
     if (!evmAddress || !escrowAddress) return;
 
     try {
@@ -203,18 +178,18 @@ export default function CreateProjectSmartContract({
       const { transactionHash } = await sendEvmTransaction({
         transaction: contributionTx,
         evmAccount: evmAddress,
-        network: "base-sepolia" as any,
+        network: "base-sepolia",
       });
 
       setContributionHash(transactionHash);
     } catch (error) {
       console.error("Creator contribution failed:", error);
-      setError("Failed to make initial contribution. Please try again.");
+      setError("Failed to create contribution. Please try again.");
       setIsPending(false);
     }
-  };
+  }, [evmAddress, escrowAddress, projectCreationFee, sendEvmTransaction]);
 
-  const handleProjectRegistration = async () => {
+  const handleProjectRegistration = useCallback(async () => {
     if (!evmAddress || !escrowAddress || !ensName || !walrusId) return;
 
     try {
@@ -243,7 +218,7 @@ export default function CreateProjectSmartContract({
       const { transactionHash } = await sendEvmTransaction({
         transaction: registrationTx,
         evmAccount: evmAddress,
-        network: "base-sepolia" as any,
+        network: "base-sepolia",
       });
 
       setRegistrationHash(transactionHash);
@@ -252,9 +227,9 @@ export default function CreateProjectSmartContract({
       setError("Failed to register project. Please try again.");
       setIsPending(false);
     }
-  };
+  }, [evmAddress, escrowAddress, ensName, walrusId, sendEvmTransaction]);
 
-  const saveProject = async () => {
+  const saveProject = useCallback(async () => {
     if (
       !evmAddress ||
       !walrusId ||
@@ -265,7 +240,13 @@ export default function CreateProjectSmartContract({
       return;
 
     try {
-      const newProjectId = `project_${Date.now()}`;
+      // Upload to Walrus and register ENS
+      const walrusResult = await uploadToWalrus();
+      const ensResult = await registerENS();
+      setWalrusId(walrusResult);
+      setEnsName(ensResult);
+
+      const projectId = `project_${Date.now()}`;
       const registryAddress = getRegistryAddress();
 
       const response = await fetch("/api/projects", {
@@ -273,7 +254,10 @@ export default function CreateProjectSmartContract({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           projectData: {
-            ...projectData,
+            projectTitle: projectData.projectTitle,
+            description: projectData.description,
+            initialUnitCost: projectData.initialUnitCost,
+            goalAmount: projectData.goalAmount,
             contributors: [
               {
                 walletAddress: evmAddress,
@@ -282,6 +266,15 @@ export default function CreateProjectSmartContract({
                 timestamp: new Date().toISOString(),
               },
             ],
+            timeline: {
+              startDate: new Date().toISOString(),
+              endDate: new Date(
+                Date.now() + 30 * 24 * 60 * 60 * 1000,
+              ).toISOString(),
+              milestones: [],
+            },
+            referrals: [],
+            costCurve: {},
           },
           userId: evmAddress,
           location: {
@@ -316,9 +309,96 @@ export default function CreateProjectSmartContract({
     } finally {
       setIsPending(false);
     }
-  };
+  }, [
+    evmAddress,
+    walrusId,
+    ensName,
+    escrowAddress,
+    registrationHash,
+    projectData,
+    projectCreationFee,
+    onSuccess,
+    uploadToWalrus,
+    registerENS,
+  ]);
 
-  const createEscrowDeploymentTransaction = () => {
+  // Handle deployment receipt
+  useEffect(() => {
+    if (deploymentHash && step === "deploy") {
+      waitForTransactionReceipt(deploymentHash).then((receipt) => {
+        if (receipt && receipt.contractAddress) {
+          setDeploymentReceipt(receipt);
+          const contractAddress = receipt.contractAddress;
+          setEscrowAddress(contractAddress);
+          console.log("Contract deployed at:", contractAddress);
+
+          // Move to approval step
+          setStep("approve");
+          handleUSDCApproval(contractAddress);
+        }
+      });
+    }
+  }, [deploymentHash, step, waitForTransactionReceipt, handleUSDCApproval]);
+
+  // Handle approval receipt
+  useEffect(() => {
+    if (approvalHash && step === "approve") {
+      waitForTransactionReceipt(approvalHash).then((receipt) => {
+        if (receipt) {
+          setApprovalReceipt(receipt);
+          console.log("USDC approval confirmed");
+
+          // Move to contribution step
+          setStep("contribute");
+          handleCreatorContribution();
+        }
+      });
+    }
+  }, [
+    approvalHash,
+    step,
+    waitForTransactionReceipt,
+    handleCreatorContribution,
+  ]);
+
+  // Handle contribution receipt
+  useEffect(() => {
+    if (contributionHash && step === "contribute") {
+      waitForTransactionReceipt(contributionHash).then((receipt) => {
+        if (receipt) {
+          setContributionReceipt(receipt);
+          console.log("Creator contribution confirmed");
+
+          // Move to registration step
+          setStep("register");
+          handleProjectRegistration();
+        }
+      });
+    }
+  }, [
+    contributionHash,
+    step,
+    waitForTransactionReceipt,
+    handleProjectRegistration,
+  ]);
+
+  // Handle registration receipt
+  useEffect(() => {
+    if (registrationHash && step === "register") {
+      waitForTransactionReceipt(registrationHash).then((receipt) => {
+        if (receipt) {
+          setRegistrationReceipt(receipt);
+          console.log("Project registration confirmed");
+
+          // Move to complete step and save to database
+          setStep("complete");
+          saveProject();
+        }
+      });
+    }
+  }, [registrationHash, step, waitForTransactionReceipt, saveProject]);
+
+  const createEscrowDeploymentTransaction = useCallback(() => {
     if (!evmAddress) throw new Error("No wallet address");
 
     const networkConfig = getNetworkConfig();
@@ -335,25 +415,21 @@ export default function CreateProjectSmartContract({
 
     console.log("Constructor args:", constructorArgs);
 
-    // Encode constructor data
-    const constructorData = encodeFunctionData({
+    // For contract deployment with viem, we use encodeDeployData to combine bytecode with constructor args
+    const deployData = encodeFunctionData({
       abi: COOP_ESCROW_ABI,
-      functionName: "constructor" as any,
       args: constructorArgs,
     });
 
-    // Create deployment data by combining bytecode with constructor
-    const deployData = (COOP_ESCROW_BYTECODE +
-      constructorData.slice(2)) as `0x${string}`;
-
+    // Create deployment transaction
     return {
       to: undefined, // Contract deployment
-      data: deployData,
+      data: (COOP_ESCROW_BYTECODE + deployData.slice(10)) as `0x${string}`, // Remove function selector (first 10 chars) and append constructor data
       gas: BigInt(3000000), // Increased gas for deployment
       chainId: networkConfig.chainId,
       type: "eip1559" as const,
     };
-  };
+  }, [evmAddress, projectData]);
 
   const handleCreateProject = useCallback(
     async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -388,9 +464,20 @@ export default function CreateProjectSmartContract({
               timestamp: new Date().toISOString(),
             },
           ],
-          timeline: projectData.timeline,
+          timeline: {
+            startDate: new Date().toISOString(),
+            endDate: new Date(
+              Date.now() + 30 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            milestones: [],
+          },
           referrals: [],
-          costCurve: projectData.costCurve,
+          costCurve: {
+            baseUnits: 1,
+            baseCost: projectData.initialUnitCost,
+            discountPercentage: 0,
+            discountThreshold: 0,
+          },
         };
 
         const walrusIdResult =
@@ -411,7 +498,7 @@ export default function CreateProjectSmartContract({
         const { transactionHash: deployHash } = await sendEvmTransaction({
           transaction: deploymentTx,
           evmAccount: evmAddress,
-          network: "base-sepolia" as any,
+          network: "base-sepolia",
         });
 
         setDeploymentHash(deployHash);
@@ -428,7 +515,13 @@ export default function CreateProjectSmartContract({
         setIsPending(false);
       }
     },
-    [evmAddress, sendEvmTransaction, projectData, projectCreationFee],
+    [
+      evmAddress,
+      sendEvmTransaction,
+      projectData,
+      projectCreationFee,
+      createEscrowDeploymentTransaction,
+    ],
   );
 
   if (!evmAddress) {
