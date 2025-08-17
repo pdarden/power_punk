@@ -24,7 +24,14 @@ export default function WalletHeader() {
         </span>
       </div>
       
-      <AuthButton />
+      <div style={{ transform: 'scale(0.75)' }}>
+        <AuthButton 
+          style={{
+            fontSize: '18px',
+            fontWeight: '500'
+          }}
+        />
+      </div>
     </div>
   );
 }

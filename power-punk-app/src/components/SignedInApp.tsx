@@ -6,6 +6,8 @@ import { Campaign, ProjectData } from '@/types';
 import ProjectCard from '@/components/projects/ProjectCard';
 import WalletHeader from '@/components/wallet/WalletHeader';
 import { Button } from '@/components/ui/button';
+import ProjectTypeDropdown from '@/components/ui/ProjectTypeDropdown';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 import { MapIcon, ListIcon, Plus } from 'lucide-react';
 import Link from 'next/link';
 
@@ -110,11 +112,29 @@ const mockProjectData: Record<string, ProjectData> = {
   },
 };
 
+// Dropdown options
+const LOCATION_OPTIONS = [
+  { value: 'usa', label: 'USA' },
+  { value: 'canada', label: 'Canada' },
+  { value: 'mexico', label: 'Mexico' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'active', label: 'Active' },
+  { value: 'funded', label: 'Funded' },
+  { value: 'completed', label: 'Completed' },
+];
+
 export default function SignedInApp() {
   const [viewMode, setViewMode] = useState<'map' | 'list'>('list');
   const [projects, setProjects] = useState<Campaign[]>([]);
   const [projectData, setProjectData] = useState<Record<string, ProjectData>>({});
   const [selectedProject, setSelectedProject] = useState<Campaign | null>(null);
+  const [filters, setFilters] = useState({
+    projectType: '',
+    location: '',
+    status: '',
+  });
 
   useEffect(() => {
     // Load projects (would fetch from Supabase in production)
@@ -192,31 +212,31 @@ export default function SignedInApp() {
 
         {/* Filters */}
         <div className="mb-6 flex gap-4">
-          <select className="px-3 py-2 pr-6 border border-gray-900 rounded-lg bg-white text-gray-900 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2212%22%20height%3d%2212%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22none%22%20stroke%3d%22%23000000%22%20stroke-width%3d%221.5%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%20d%3d%22M3%204.5L6%207.5L9%204.5%22%2f%3e%3c%2fsvg%3e')] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat">
-            <option value="">All Project Types</option>
-            <option value="solar_microgrid">Solar Microgrid</option>
-            <option value="batteries">Batteries</option>
-            <option value="community_park">Community Park</option>
-            <option value="hvac_system">HVAC System</option>
-            <option value="tree_planting">Tree Planting</option>
-            <option value="electrification">Electrification</option>
-            <option value="bitcoin_mining">Bitcoin Mining</option>
-            <option value="gpu_infrastructure">GPU Infrastructure</option>
-          </select>
+          <div className="min-w-[200px]">
+            <ProjectTypeDropdown
+              value={filters.projectType}
+              onChange={(value) => setFilters({ ...filters, projectType: value })}
+              placeholder="All Project Types"
+            />
+          </div>
           
-          <select className="px-3 py-2 pr-10 border border-gray-900 rounded-lg bg-white text-gray-900 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2212%22%20height%3d%2212%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22none%22%20stroke%3d%22%23000000%22%20stroke-width%3d%221.5%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%20d%3d%22M3%204.5L6%207.5L9%204.5%22%2f%3e%3c%2fsvg%3e')] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat">
-            <option value="">All Locations</option>
-            <option value="usa">USA</option>
-            <option value="canada">Canada</option>
-            <option value="mexico">Mexico</option>
-          </select>
+          <div className="min-w-[150px]">
+            <CustomDropdown
+              value={filters.location}
+              onChange={(value) => setFilters({ ...filters, location: value })}
+              options={LOCATION_OPTIONS}
+              placeholder="All Locations"
+            />
+          </div>
           
-          <select className="px-3 py-2 pr-6 border border-gray-900 rounded-lg bg-white text-gray-900 appearance-none bg-[url('data:image/svg+xml;charset=UTF-8,%3csvg%20xmlns%3d%22http%3a%2f%2fwww.w3.org%2f2000%2fsvg%22%20width%3d%2212%22%20height%3d%2212%22%20viewBox%3d%220%200%2012%2012%22%3e%3cpath%20fill%3d%22none%22%20stroke%3d%22%23000000%22%20stroke-width%3d%221.5%22%20stroke-linecap%3d%22round%22%20stroke-linejoin%3d%22round%22%20d%3d%22M3%204.5L6%207.5L9%204.5%22%2f%3e%3c%2fsvg%3e')] bg-[length:12px] bg-[right_0.75rem_center] bg-no-repeat">
-            <option value="">All Status</option>
-            <option value="active">Active</option>
-            <option value="funded">Funded</option>
-            <option value="completed">Completed</option>
-          </select>
+          <div className="min-w-[120px]">
+            <CustomDropdown
+              value={filters.status}
+              onChange={(value) => setFilters({ ...filters, status: value })}
+              options={STATUS_OPTIONS}
+              placeholder="All Status"
+            />
+          </div>
         </div>
 
         {/* Content */}

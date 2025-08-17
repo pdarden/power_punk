@@ -3,6 +3,7 @@
 import { Campaign, ProjectData } from '@/types';
 import { formatCurrency } from '@/lib/utils/pricing';
 import { Button } from '@/components/ui/button';
+import ProjectTypeIcon, { getProjectTypeLabel, getProjectTypeColor } from '@/components/ui/ProjectTypeIcon';
 import { MapPin, Users, Target, Clock } from 'lucide-react';
 import Link from 'next/link';
 
@@ -26,8 +27,12 @@ export default function ProjectCard({ campaign, projectData }: ProjectCardProps)
             <h3 className="text-xl font-bold text-gray-900 mb-1">
               {projectData?.projectTitle || 'Loading...'}
             </h3>
-            <span className="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-              {campaign.project_type.replace(/_/g, ' ')}
+            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-gray-100 text-gray-800">
+              <ProjectTypeIcon 
+                type={campaign.project_type} 
+                className={`w-3 h-3 ${getProjectTypeColor(campaign.project_type)}`} 
+              />
+              {getProjectTypeLabel(campaign.project_type)}
             </span>
           </div>
           <span className={`px-2 py-1 text-xs rounded-full ${

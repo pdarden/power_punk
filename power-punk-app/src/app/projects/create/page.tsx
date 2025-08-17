@@ -5,8 +5,16 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { ProjectType } from '@/types';
 import CreateProjectEscrow from '@/components/wallet/CreateProjectEscrow';
+import ProjectTypeDropdown from '@/components/ui/ProjectTypeDropdown';
+import CustomDropdown from '@/components/ui/CustomDropdown';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+
+// Dropdown options
+const ESCROW_TYPE_OPTIONS = [
+  { value: 'agent', label: 'Agent Escrow (CDP AgentKit)' },
+  { value: 'contract', label: 'Smart Contract Escrow (CoopEscrow)' },
+];
 
 export default function CreateProjectPage() {
   const router = useRouter();
@@ -143,32 +151,23 @@ export default function CreateProjectPage() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Project Type</label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-white text-gray-900"
+                <ProjectTypeDropdown
                   value={formData.projectType}
-                  onChange={(e) => setFormData({ ...formData, projectType: e.target.value as ProjectType })}
-                >
-                  <option value="solar_microgrid">Solar Microgrid</option>
-                  <option value="batteries">Batteries</option>
-                  <option value="community_park">Community Park</option>
-                  <option value="hvac_system">HVAC System</option>
-                  <option value="tree_planting">Tree Planting</option>
-                  <option value="electrification">Electrification</option>
-                  <option value="bitcoin_mining">Bitcoin Mining</option>
-                  <option value="gpu_infrastructure">GPU Infrastructure</option>
-                </select>
+                  onChange={(value) => setFormData({ ...formData, projectType: value as ProjectType })}
+                  placeholder="Select Project Type"
+                  includeAllOption={false}
+                />
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Escrow Type</label>
-                <select
-                  className="w-full px-3 py-2 border border-gray-900 rounded-lg bg-white text-gray-900"
+                <CustomDropdown
                   value={formData.escrowType}
-                  onChange={(e) => setFormData({ ...formData, escrowType: e.target.value as 'agent' | 'contract' })}
-                >
-                  <option value="agent">Agent Escrow (CDP AgentKit)</option>
-                  <option value="contract">Smart Contract Escrow (CoopEscrow)</option>
-                </select>
+                  onChange={(value) => setFormData({ ...formData, escrowType: value as 'agent' | 'contract' })}
+                  options={ESCROW_TYPE_OPTIONS}
+                  placeholder="Select Escrow Type"
+                  includeAllOption={false}
+                />
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.escrowType === 'agent' 
                     ? 'Uses CDP AgentKit to manage funds with AI-powered distribution'

@@ -7,6 +7,7 @@ import { ArrowLeft, MapPin, Users, Target, Clock, Trophy, TrendingUp } from 'luc
 import { Campaign, ProjectData } from '@/types';
 import { formatCurrency } from '@/lib/utils/pricing';
 import ContributeToProject from '@/components/wallet/ContributeToProject';
+import ProjectTypeIcon, { getProjectTypeLabel, getProjectTypeColor } from '@/components/ui/ProjectTypeIcon';
 import Providers from '@/components/providers/Providers';
 
 // Mock data - in production this would come from Supabase/Walrus
@@ -187,8 +188,12 @@ function ProjectDetailContent() {
                 <div>
                   <h1 className="text-3xl font-bold text-gray-900 mb-2">{data.projectTitle}</h1>
                   <div className="flex items-center gap-3">
-                    <span className="inline-block px-3 py-1 text-sm rounded-full bg-green-100 text-green-800">
-                      {campaign.project_type.replace(/_/g, ' ')}
+                    <span className="inline-flex items-center gap-2 px-3 py-1 text-sm rounded-full bg-gray-100 text-gray-800">
+                      <ProjectTypeIcon 
+                        type={campaign.project_type} 
+                        className={`w-4 h-4 ${getProjectTypeColor(campaign.project_type)}`} 
+                      />
+                      {getProjectTypeLabel(campaign.project_type)}
                     </span>
                     <span className={`px-3 py-1 text-sm rounded-full ${
                       campaign.status === 'active' ? 'bg-blue-100 text-blue-800' :
