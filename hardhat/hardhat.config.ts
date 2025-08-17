@@ -10,8 +10,8 @@ import { configVariable } from "hardhat/config";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Load environment variables from parent directory
-dotenvConfig({ path: path.resolve(__dirname, "../.env") });
+// Load environment variables from current directory
+dotenvConfig({ path: path.resolve(__dirname, ".env") });
 
 const config: HardhatUserConfig = {
   plugins: [hardhatToolboxMochaEthersPlugin],

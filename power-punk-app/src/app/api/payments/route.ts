@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { walrusClient } from '@/lib/walrus/client';
 import { ProjectAgent } from '@/lib/coinbase/agentkit';
-import { walletService } from '@/lib/coinbase/wallets';
 
 export async function POST(req: NextRequest) {
   try {

@@ -9,10 +9,10 @@ export default function SignInScreen() {
         <div className="text-center mb-8">
           <img 
             src="/powerpunk.png" 
-            alt="Power Punk" 
+            alt="PowerPunk" 
             className="w-20 h-20 mx-auto mb-4 rounded-lg"
           />
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Power Punk</h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">PowerPunk</h1>
           <p className="text-lg text-gray-600">Grassroots Climate Solutions</p>
         </div>
 

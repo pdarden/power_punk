@@ -1,10 +1,16 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useSendEvmTransaction, useEvmAddress } from '@coinbase/cdp-hooks';
-import { SendTransactionButton } from '@coinbase/cdp-react';
-// LoadingSkeleton is not available, using a simple div instead
-import { parseUnits, encodeFunctionData } from 'viem';
+import { useWaitForTransactionReceipt } from 'wagmi';
+import { 
+  createEscrowDeploymentTransaction,
+  createProjectRegistrationTransaction, 
+  parseUSDCAmount, 
+  getNetworkConfig,
+  getRegistryAddress
+} from '@/contracts/coopEscrow';
+import { CoopEscrowDeployParams } from '@/contracts/types';
 
 interface CreateProjectSmartContractProps {
   projectData: {
@@ -26,38 +32,6 @@ interface CreateProjectSmartContractProps {
   onSuccess?: (transactionHash: string, projectId: string) => void;
 }
 
-// USDC contract address on Base Sepolia testnet
-const USDC_CONTRACT_ADDRESS = '0x036CbD53842c5426634e7929541eC2318f3dCF7e';
-
-// GrassrootsCrowdfunding contract ABI (partial - only what we need)
-const CROWDFUNDING_ABI = [
-  {
-    "inputs": [
-      {"internalType": "address", "name": "_usdcToken", "type": "address"},
-      {"internalType": "uint256", "name": "_fundingGoal", "type": "uint256"},
-      {"internalType": "uint256", "name": "_unitCost", "type": "uint256"},
-      {"internalType": "uint256", "name": "_costSavingsPerUnit", "type": "uint256"},
-      {"internalType": "uint256", "name": "_deadline", "type": "uint256"},
-      {"internalType": "uint256", "name": "_initialContribution", "type": "uint256"}
-    ],
-    "stateMutability": "nonpayable",
-    "type": "constructor"
-  },
-  {
-    "inputs": [
-      {"internalType": "uint256", "name": "_amount", "type": "uint256"},
-      {"internalType": "address", "name": "_referrer", "type": "address"}
-    ],
-    "name": "contribute",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  }
-] as const;
-
-// Contract bytecode would normally be here - for demo purposes, we'll simulate deployment
-const CONTRACT_BYTECODE = "0x608060405234801561001057600080fd5b5..."; // This would be the actual compiled bytecode
-
 export default function CreateProjectSmartContract({
   projectData,
   onSuccess,
@@ -66,11 +40,128 @@ export default function CreateProjectSmartContract({
   const { evmAddress } = useEvmAddress();
 
   const [isPending, setIsPending] = useState(false);
-  const [transactionHash, setTransactionHash] = useState<string | null>(null);
-  const [contractAddress, setContractAddress] = useState<string | null>(null);
+  const [deploymentHash, setDeploymentHash] = useState<string | null>(null);
+  const [registrationHash, setRegistrationHash] = useState<string | null>(null);
+  const [escrowAddress, setEscrowAddress] = useState<string | null>(null);
+  const [step, setStep] = useState<'deploy' | 'register' | 'complete'>('deploy');
+  const [isWaitingForReceipt, setIsWaitingForReceipt] = useState(false);
+  const [walrusId, setWalrusId] = useState<string | null>(null);
+  const [ensName, setEnsName] = useState<string | null>(null);
+  
+  const { data: deploymentReceipt } = useWaitForTransactionReceipt({
+    hash: deploymentHash as `0x${string}`,
+    query: {
+      enabled: !!deploymentHash && isWaitingForReceipt,
+    },
+  });
 
   const projectCreationFee = projectData.initialUnitCost;
   const requiredContributions = Math.ceil(projectData.goalAmount / projectData.initialUnitCost);
+
+  // Handle deployment receipt and continue with registration
+  useEffect(() => {
+    if (deploymentReceipt && deploymentReceipt.contractAddress && isWaitingForReceipt) {
+      const contractAddress = deploymentReceipt.contractAddress;
+      setEscrowAddress(contractAddress);
+      setIsWaitingForReceipt(false);
+      setStep('register');
+      
+      // Continue with registration
+      registerProject(contractAddress);
+    }
+  }, [deploymentReceipt, isWaitingForReceipt]);
+
+  const registerProject = async (contractAddress: string) => {
+    if (!evmAddress || !ensName || !walrusId) return;
+    
+    try {
+      const registryAddress = getRegistryAddress();
+      const metaURI = `ipfs://walrus/${walrusId}`;
+      
+      console.log('Registering project in registry:', {
+        ensName,
+        escrowAddress: contractAddress,
+        metaURI,
+      });
+
+      const registrationTx = createProjectRegistrationTransaction(
+        ensName,
+        contractAddress,
+        metaURI
+      );
+
+      const { transactionHash: regHash } = await sendEvmTransaction({
+        transaction: registrationTx,
+        evmAccount: evmAddress,
+        network: 'base-sepolia' as any,
+      });
+
+      setRegistrationHash(regHash);
+      setStep('complete');
+
+      // Create the project via API
+      await saveProject(contractAddress, regHash, registryAddress);
+      
+    } catch (error) {
+      console.error('Registration failed:', error);
+      alert('Project registration failed. Please try again.');
+      setIsPending(false);
+    }
+  };
+
+  const saveProject = async (contractAddress: string, transactionHash: string, registryAddress: string) => {
+    if (!evmAddress || !walrusId || !ensName) return;
+
+    try {
+      const newProjectId = `project_${Date.now()}`;
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectData: {
+            ...projectData,
+            contributors: [
+              {
+                walletAddress: evmAddress,
+                units: 1,
+                totalAmountPaid: projectCreationFee,
+                timestamp: new Date().toISOString(),
+              }
+            ],
+          },
+          userId: evmAddress,
+          location: {
+            country: projectData.location.country,
+            region: projectData.location.region,
+            coordinates: {
+              lat: parseFloat(projectData.location.lat),
+              lng: parseFloat(projectData.location.lng),
+            },
+          },
+          projectType: projectData.projectType,
+          transactionHash,
+          contractAddress,
+          escrowType: 'contract',
+          walrusId,
+          ensName,
+          registryAddress,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create project');
+      }
+
+      const result = await response.json();
+      onSuccess?.(transactionHash, result.campaign.id);
+      
+    } catch (error) {
+      console.error('Project save failed:', error);
+      alert('Project saved to blockchain but failed to save to database. Please contact support.');
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   const handleCreateProject = useCallback(
     async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -80,6 +171,13 @@ export default function CreateProjectSmartContract({
       setIsPending(true);
 
       try {
+        const networkConfig = getNetworkConfig();
+        const registryAddress = getRegistryAddress();
+        
+        if (!registryAddress) {
+          throw new Error('Project registry address not found');
+        }
+
         // First, store project data in Walrus
         const { walrusClient } = await import('@/lib/walrus/client');
         
@@ -101,111 +199,37 @@ export default function CreateProjectSmartContract({
           costCurve: projectData.costCurve,
         };
 
-        const walrusId = await walrusClient.storeProjectData(projectDataForWalrus);
+        const walrusIdResult = await walrusClient.storeProjectData(projectDataForWalrus);
+        setWalrusId(walrusIdResult);
 
-        // Calculate contract parameters
-        const fundingGoalWei = parseUnits(projectData.goalAmount.toString(), 6);
-        const unitCostWei = parseUnits(projectData.initialUnitCost.toString(), 6);
-        const initialContributionWei = parseUnits(projectCreationFee.toString(), 6);
-        
-        // Set deadline to 30 days from now
-        const deadline = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
-        
-        // Cost savings per unit (5% of unit cost for rewards)
-        const costSavingsPerUnit = unitCostWei / 20n; // 5%
+        // Create ENS name from project title
+        const ensNameResult = projectData.projectTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') + '.eth';
+        setEnsName(ensNameResult);
 
-        // For demo purposes, we'll simulate contract deployment
-        // In a real implementation, you would deploy the contract with constructor parameters
-        
-        // Simulate contract creation transaction
-        console.log('Deploying GrassrootsCrowdfunding contract with parameters:', {
-          usdcToken: USDC_CONTRACT_ADDRESS,
-          fundingGoal: fundingGoalWei.toString(),
-          unitCost: unitCostWei.toString(),
-          costSavingsPerUnit: costSavingsPerUnit.toString(),
-          deadline: deadline,
-          initialContribution: initialContributionWei.toString(),
-        });
+        // Step 1: Deploy individual escrow contract
+        const deployParams: CoopEscrowDeployParams = {
+          token: networkConfig.usdcAddress,
+          beneficiary: evmAddress, // Project creator is the beneficiary
+          goal: parseUSDCAmount(projectData.goalAmount),
+          deadline: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days from now
+          minContribution: parseUSDCAmount(projectData.initialUnitCost),
+          creatorContribution: parseUSDCAmount(projectCreationFee), // Initial contribution from creator
+        };
 
-        // For demonstration, we'll create a transaction to approve USDC for the contract
-        // In reality, the contract deployment would handle the initial contribution
-        
-        // First approve USDC for the (simulated) contract
-        const approveData = encodeFunctionData({
-          abi: [
-            {
-              "inputs": [
-                {"internalType": "address", "name": "spender", "type": "address"},
-                {"internalType": "uint256", "name": "amount", "type": "uint256"}
-              ],
-              "name": "approve",
-              "outputs": [{"internalType": "bool", "name": "", "type": "bool"}],
-              "stateMutability": "nonpayable",
-              "type": "function"
-            }
-          ],
-          functionName: 'approve',
-          args: [evmAddress, initialContributionWei], // Approve for self as demo
-        });
+        const deploymentTx = createEscrowDeploymentTransaction(deployParams);
 
-        const { transactionHash } = await sendEvmTransaction({
-          transaction: {
-            to: USDC_CONTRACT_ADDRESS,
-            data: approveData,
-            gas: 65000n,
-            chainId: 84532, // Base Sepolia testnet
-            type: "eip1559",
-          },
+        console.log('Deploying individual escrow contract:', deployParams);
+
+        const { transactionHash: deployHash } = await sendEvmTransaction({
+          transaction: deploymentTx,
           evmAccount: evmAddress,
-          network: "base-sepolia",
+          network: 'base-sepolia' as any,
         });
 
-        setTransactionHash(transactionHash);
+        setDeploymentHash(deployHash);
+        setIsWaitingForReceipt(true);
         
-        // Generate a simulated contract address for demo
-        const simulatedContractAddress = `0x${Math.random().toString(16).slice(2, 42)}`;
-        setContractAddress(simulatedContractAddress);
-
-        // Create the project via API
-        const projectId = `project_${Date.now()}`;
-        const response = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectData: {
-              ...projectData,
-              contributors: [
-                {
-                  walletAddress: evmAddress,
-                  units: 1,
-                  totalAmountPaid: projectCreationFee,
-                  timestamp: new Date().toISOString(),
-                }
-              ],
-            },
-            userId: evmAddress,
-            location: {
-              country: projectData.location.country,
-              region: projectData.location.region,
-              coordinates: {
-                lat: parseFloat(projectData.location.lat),
-                lng: parseFloat(projectData.location.lng),
-              },
-            },
-            projectType: projectData.projectType,
-            transactionHash,
-            contractAddress: simulatedContractAddress,
-            escrowType: 'contract',
-            walrusId,
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to create project');
-        }
-
-        const result = await response.json();
-        onSuccess?.(transactionHash, result.campaign.id);
+        // The deployment receipt handling will be done in the useEffect above
 
       } catch (error) {
         console.error('Smart contract project creation failed:', error);
@@ -221,31 +245,40 @@ export default function CreateProjectSmartContract({
     return <div className="w-full h-20 bg-gray-200 animate-pulse rounded" />;
   }
 
-  if (transactionHash) {
+  if (step === 'complete' && deploymentHash && registrationHash && escrowAddress) {
+    const registryAddress = getRegistryAddress();
     return (
       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
         <h3 className="text-lg font-semibold text-green-800 mb-2">
           Smart Contract Project Created! 🎉
         </h3>
         <p className="text-sm text-green-700 mb-2">
-          Your project &quot;{projectData.projectTitle}&quot; is now live with smart contract escrow
+          Your project &quot;{projectData.projectTitle}&quot; is now registered with its own escrow contract
         </p>
         <p className="text-sm text-green-700 mb-2">
-          Contract Address: {contractAddress}
+          Escrow Contract: {escrowAddress}
         </p>
         <p className="text-sm text-green-700 mb-2">
-          Initial contribution: ${projectCreationFee} USDC
+          Registry Contract: {registryAddress}
         </p>
-        <p className="text-xs text-green-600 break-all">
-          Transaction: {transactionHash}
+        <p className="text-sm text-green-700 mb-2">
+          Initial contribution: ${projectCreationFee} USDC (included in deployment)
         </p>
+        <div className="space-y-1">
+          <p className="text-xs text-green-600 break-all">
+            Deployment Tx: {deploymentHash}
+          </p>
+          <p className="text-xs text-green-600 break-all">
+            Registration Tx: {registrationHash}
+          </p>
+        </div>
         <div className="mt-3 p-2 bg-green-100 rounded text-xs text-green-700">
           <strong>Smart Contract Features:</strong>
           <ul className="list-disc list-inside mt-1">
-            <li>Automatic refunds if goal not met</li>
+            <li>Individual escrow contract per project</li>
+            <li>Registry tracking for all projects</li>
             <li>Trustless fund distribution</li>
-            <li>Reward calculation for overfunding</li>
-            <li>Referral tracking and bonuses</li>
+            <li>Transparent contribution tracking</li>
           </ul>
         </div>
       </div>
@@ -279,18 +312,18 @@ export default function CreateProjectSmartContract({
         <div className="bg-green-50 p-3 rounded-lg border border-green-200">
           <h4 className="font-medium text-green-800 mb-1">Smart Contract Benefits</h4>
           <ul className="text-sm text-green-700 list-disc list-inside space-y-1">
-            <li>Trustless escrow - no intermediaries needed</li>
-            <li>Automatic refunds if funding goal not reached</li>
-            <li>Transparent reward distribution for overfunding</li>
-            <li>Immutable terms on the blockchain</li>
+            <li>Individual escrow contract per project</li>
+            <li>Registered in on-chain project registry</li>
+            <li>Transparent contribution tracking</li>
+            <li>Trustless fund management</li>
           </ul>
         </div>
 
         <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-          <h4 className="font-medium text-yellow-800 mb-1">Your First Contribution</h4>
+          <h4 className="font-medium text-yellow-800 mb-1">Project Creation Process</h4>
           <p className="text-sm text-yellow-700">
-            As the project creator, you&apos;ll deploy the smart contract and make the first contribution 
-            of ${projectCreationFee} USDC. The contract will hold all funds in escrow until the deadline.
+            A new escrow contract will be deployed specifically for your project with your initial contribution 
+            of ${projectCreationFee} USDC, then registered in our project registry.
           </p>
         </div>
 
@@ -299,11 +332,14 @@ export default function CreateProjectSmartContract({
           disabled={isPending}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
         >
-          {isPending ? 'Deploying Contract...' : `Deploy Contract & Pay ${projectCreationFee} USDC`}
+          {isPending 
+            ? (step === 'deploy' ? 'Deploying Escrow Contract...' : step === 'register' ? 'Registering Project...' : 'Creating Project...') 
+            : `Deploy Escrow & Create Project (${projectCreationFee} USDC)`
+          }
         </button>
 
         <p className="text-xs text-gray-500 text-center">
-          Smart contract will be deployed on Base Sepolia testnet
+          Project will be registered on Base Sepolia testnet
         </p>
       </div>
     </div>

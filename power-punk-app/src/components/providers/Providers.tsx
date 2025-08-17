@@ -15,7 +15,7 @@ const config: Config = {
 
 // App Configuration
 const appConfig: AppConfig = {
-  name: 'Power Punk',
+  name: 'PowerPunk',
   logoUrl: '/powerpunk.png',
   authMethods: ["email"] as const,
 };

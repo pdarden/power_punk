@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Power Punk - Grassroots Climate Solutions",
+  title: "PowerPunk - Grassroots Climate Solutions",
   description: "Fund community climate projects through crowdfunding with transparent escrow and rewards",
   icons: {
     icon: '/powerpunk.png',
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     apple: '/powerpunk.png',
   },
   openGraph: {
-    title: 'Power Punk',
+    title: 'PowerPunk',
     description: 'Fund community climate projects through crowdfunding',
     images: ['/powerpunk.png'],
   },

@@ -151,10 +151,10 @@ export default function SignedInApp() {
             <div className="flex items-center">
               <img 
                 src="/powerpunk.png" 
-                alt="Power Punk" 
+                alt="PowerPunk" 
                 className="w-10 h-10 mr-3 rounded-lg"
               />
-              <h1 className="text-2xl font-bold text-gray-900">Power Punk</h1>
+              <h1 className="text-2xl font-bold text-gray-900">PowerPunk</h1>
               <span className="ml-3 text-sm text-gray-500">
                 Grassroots Climate Solutions
               </span>

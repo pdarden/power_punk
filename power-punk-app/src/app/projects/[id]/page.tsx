@@ -330,7 +330,7 @@ function ProjectDetailContent() {
             <div className="sticky top-4">
               <ContributeToProject
                 projectId={campaign.id}
-                projectWalletAddress="0x1234567890123456789012345678901234567890"
+                escrowType="contract" // Default to contract escrow for demo
                 unitPrice={data.initialUnitCost}
                 onSuccess={(txHash) => {
                   console.log('Contribution successful:', txHash);
