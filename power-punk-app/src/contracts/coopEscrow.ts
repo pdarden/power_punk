@@ -1,4 +1,4 @@
-import { encodeFunctionData, parseUnits, encodeDeployData } from "viem";
+import { parseUnits, encodeDeployData } from "viem";
 import CoopEscrowABI from "./abi/CoopEscrow.json";
 import ProjectRegistryABI from "./abi/ProjectRegistry.json";
 import registryConfig from "./registry.json";
@@ -40,10 +40,10 @@ export function createEscrowDeploymentTransaction(
 ) {
   const networkConfig = getNetworkConfig();
 
-  // Encode constructor parameters
-  const constructorData = encodeFunctionData({
+  // Use proper deployment encoding with viem
+  const deployData = encodeDeployData({
     abi: COOP_ESCROW_ABI,
-    functionName: "constructor" as any,
+    bytecode: COOP_ESCROW_BYTECODE,
     args: [
       params.token,
       params.beneficiary,
@@ -53,10 +53,6 @@ export function createEscrowDeploymentTransaction(
       params.creatorContribution,
     ],
   });
-
-  // Combine bytecode with constructor parameters
-  const deployData = (COOP_ESCROW_BYTECODE +
-    constructorData.slice(2)) as `0x${string}`;
 
   return {
     to: undefined, // Contract deployment

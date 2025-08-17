@@ -10,10 +10,10 @@ import {
   encodeUSDCApproval,
   encodeContribution,
   encodeProjectCreation,
+  createEscrowDeploymentTransaction,
 } from "@/contracts/coopEscrow";
-import { createPublicClient, http, encodeDeployData } from "viem";
+import { createPublicClient, http } from "viem";
 import { base, baseSepolia } from "viem/chains";
-import CoopEscrowArtifact from "../../../../hardhat/artifacts/contracts/CoopEscrow.sol/CoopEscrow.json";
 
 interface CreateProjectSmartContractProps {
   projectData: {
@@ -397,47 +397,20 @@ export default function CreateProjectSmartContract({
     }
   }, [registrationHash, step, waitForTransactionReceipt, saveProject]);
 
-  const createEscrowDeploymentTransaction = useCallback(() => {
+  const createDeploymentTransaction = useCallback(() => {
     if (!evmAddress) throw new Error("No wallet address");
 
     const networkConfig = getNetworkConfig();
 
-    // Constructor parameters - ensure correct types for the ABI
-    const constructorArgs: readonly [
-      `0x${string}`,
-      `0x${string}`,
-      bigint,
-      bigint,
-      bigint,
-      bigint,
-    ] = [
-      networkConfig.usdcAddress as `0x${string}`, // token (address)
-      evmAddress as `0x${string}`, // beneficiary (address)
-      parseUSDCAmount(projectData.goalAmount), // goal (uint256)
-      BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60), // deadline (uint64)
-      parseUSDCAmount(projectData.initialUnitCost), // minContribution (uint256)
-      BigInt(0), // creatorContribution (0 in constructor, separate tx later)
-    ];
-
-    console.log("Constructor args:", constructorArgs);
-
-    // Use viem's encodeDeployData for proper contract deployment
-    const deploymentData = encodeDeployData({
-      abi: CoopEscrowArtifact.abi,
-      bytecode: CoopEscrowArtifact.bytecode as `0x${string}`,
-      args: constructorArgs,
+    // Use the fixed function from coopEscrow.ts
+    return createEscrowDeploymentTransaction({
+      token: networkConfig.usdcAddress,
+      beneficiary: evmAddress,
+      goal: parseUSDCAmount(projectData.goalAmount),
+      deadline: BigInt(Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60),
+      minContribution: parseUSDCAmount(projectData.initialUnitCost),
+      creatorContribution: BigInt(0), // 0 in constructor, separate tx later
     });
-
-    console.log("Deployment data length:", deploymentData.length);
-    console.log("Deployment data preview:", deploymentData.slice(0, 42));
-
-    return {
-      to: undefined, // Contract deployment
-      data: deploymentData,
-      gas: BigInt(3000000), // Use BigInt like other transactions
-      chainId: networkConfig.chainId,
-      type: "eip1559" as const,
-    };
   }, [evmAddress, projectData]);
 
   const handleCreateProject = useCallback(
@@ -470,7 +443,7 @@ export default function CreateProjectSmartContract({
         console.log("Deploying escrow contract...");
 
         // Deploy escrow contract (step 1)
-        const deploymentTx = createEscrowDeploymentTransaction();
+        const deploymentTx = createDeploymentTransaction();
         console.log("Deployment transaction:", {
           to: deploymentTx.to,
           data: deploymentTx.data?.slice(0, 100) + "...", // First 100 chars of data
@@ -508,7 +481,7 @@ export default function CreateProjectSmartContract({
       sendEvmTransaction,
       projectData,
       projectCreationFee,
-      createEscrowDeploymentTransaction,
+      createDeploymentTransaction,
     ],
   );
 
