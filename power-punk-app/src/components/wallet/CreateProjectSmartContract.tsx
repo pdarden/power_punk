@@ -61,10 +61,10 @@ export default function CreateProjectSmartContract({
   const [ensName, setEnsName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Placeholder functions for future implementation
+  // Mock function to replace Walrus upload
   const uploadToWalrus = useCallback(async (): Promise<string> => {
-    // TODO: Implement Walrus upload
-    return `walrus_${Date.now()}`;
+    // Mock implementation - just return a fake ID
+    return `mock_walrus_${Date.now()}`;
   }, []);
 
   const registerENS = useCallback(async (): Promise<string> => {
@@ -240,7 +240,7 @@ export default function CreateProjectSmartContract({
       return;
 
     try {
-      // Upload to Walrus and register ENS
+      // Generate mock IDs (replacing Walrus upload)
       const walrusResult = await uploadToWalrus();
       const ensResult = await registerENS();
       setWalrusId(walrusResult);
@@ -447,41 +447,9 @@ export default function CreateProjectSmartContract({
           throw new Error("Project registry address not found");
         }
 
-        // First, store project data in Walrus
-        console.log("Storing project data in Walrus...");
-        const { walrusClient } = await import("@/lib/walrus/client");
-
-        const projectDataForWalrus = {
-          projectTitle: projectData.projectTitle,
-          description: projectData.description,
-          initialUnitCost: projectData.initialUnitCost,
-          goalAmount: projectData.goalAmount,
-          contributors: [
-            {
-              walletAddress: evmAddress,
-              units: 1,
-              totalAmountPaid: projectCreationFee,
-              timestamp: new Date().toISOString(),
-            },
-          ],
-          timeline: {
-            startDate: new Date().toISOString(),
-            endDate: new Date(
-              Date.now() + 30 * 24 * 60 * 60 * 1000,
-            ).toISOString(),
-            milestones: [],
-          },
-          referrals: [],
-          costCurve: {
-            baseUnits: 1,
-            baseCost: projectData.initialUnitCost,
-            discountPercentage: 0,
-            discountThreshold: 0,
-          },
-        };
-
-        const walrusIdResult =
-          await walrusClient.storeProjectData(projectDataForWalrus);
+        // Generate mock Walrus ID (Walrus removed for now)
+        console.log("Generating mock Walrus ID...");
+        const walrusIdResult = `mock_walrus_${Date.now()}`;
         setWalrusId(walrusIdResult);
 
         // Create ENS name from project title
