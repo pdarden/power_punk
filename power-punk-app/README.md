@@ -4,24 +4,27 @@ A decentralized crowdfunding platform for community-driven climate projects incl
 
 ## Features
 
-- **Map-based Project Discovery**: Interactive map showing active projects with location-based filtering
-- **Dynamic Pricing**: Volume-based discounts for bulk contributors
+- **Interactive Project Discovery**: Map and list views with advanced filtering by project type, location, and status
+- **Dual Escrow Options**: Choose between AI-powered AgentKit escrow or trustless smart contract escrow
+- **Project Type Icons**: Visual identification with color-coded icons for all project categories  
 - **Referral System**: Earn rewards by referring new contributors
-- **Agent-based Escrow**: Each project has its own AI agent managing funds
-- **Decentralized Storage**: Project data stored on Walrus for transparency
-- **Multi-wallet Support**: Coinbase embedded wallets for easy user onboarding
+- **Real-time Updates**: Live project cards with funding progress and contributor tracking
+- **Embedded Wallet Integration**: Seamless onboarding with Coinbase CDP Embedded Wallets
+- **Decentralized Storage**: Immutable project data stored on Walrus
 
 ## Tech Stack
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS
-- **Maps**: Leaflet.js for interactive project mapping
+- **Frontend**: Next.js 15, React, TypeScript, Tailwind CSS
+- **UI Components**: Custom dropdowns with Lucide icons, responsive design
+- **Maps**: Leaflet.js for interactive project mapping with popup cards
 - **Database**: Supabase for user accounts and campaign metadata
 - **Storage**: Walrus for immutable project data storage
+- **Smart Contracts**: GrassrootsCrowdfunding contract for trustless escrow
 - **Payments**: 
-  - Coinbase AgentKit for project wallet management
-  - Coinbase Embedded Wallets for user wallets
-  - Base Network for transactions
-- **AI**: OpenAI integration for agent decision-making
+  - Coinbase Embedded Wallets for seamless user authentication
+  - Coinbase AgentKit for AI-managed project wallets
+  - USDC transactions on Base Network
+- **AI**: OpenAI integration for agent decision-making and fund distribution
 
 ## Setup Instructions
 
@@ -132,23 +135,24 @@ src/
 
 ### Creating a Project
 
-1. Connect your wallet
-2. Click "Create Project"
+1. Connect your wallet using embedded authentication
+2. Click "Create Project" 
 3. Fill in project details including:
-   - Title and description
-   - Location (with coordinates)
+   - Project title and description
+   - Project type (with visual icon selection)
+   - Escrow type: Agent Escrow (CDP AgentKit) or Smart Contract Escrow
+   - Location with coordinates
    - Funding goal and unit costs
-   - Timeline and milestones
-   - Optional dynamic pricing curves
-4. Submit to create project agent and wallet
+   - Project timeline and deadline
+4. Deploy smart contract or create agent wallet based on escrow choice
 
 ### Contributing to a Project
 
-1. Browse projects on the map or list view
-2. Select a project to view details
-3. Choose number of units to purchase
-4. Complete payment through connected wallet
-5. Receive confirmation and track contribution
+1. Browse projects using interactive map or filterable list view
+2. Click on project markers or "View Project" to see detailed information
+3. Use the contribution widget to select number of units
+4. Complete USDC payment through embedded wallet integration
+5. Receive transaction confirmation and track your contribution in real-time
 
 ### Referral System
 
