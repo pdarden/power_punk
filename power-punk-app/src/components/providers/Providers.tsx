@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { CDPReactProvider, type AppConfig } from '@coinbase/cdp-react';
-import { type Config } from '@coinbase/cdp-core';
-import { ReactNode } from 'react';
+import { CDPReactProvider, type AppConfig } from "@coinbase/cdp-react";
+import { type Config } from "@coinbase/cdp-core";
+import { ReactNode } from "react";
 
 interface ProvidersProps {
   children: ReactNode;
@@ -10,13 +10,13 @@ interface ProvidersProps {
 
 // CDP Configuration
 const config: Config = {
-  projectId: process.env.NEXT_PUBLIC_CDP_PROJECT_ID ?? '',
+  projectId: process.env.NEXT_PUBLIC_CDP_PROJECT_ID ?? "",
 };
 
 // App Configuration
 const appConfig: AppConfig = {
-  name: 'PowerPunk',
-  logoUrl: '/powerpunk.png',
+  name: "PowerPunk",
+  logoUrl: "/powerpunk.png",
   authMethods: ["email"] as const,
 };
 

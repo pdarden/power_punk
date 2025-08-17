@@ -39,7 +39,7 @@ ETHERSCAN_API_KEY=your_etherscan_api_key
 
 **`power-punk-app/.env.local`:**
 ```env
-NEXT_PUBLIC_CDP_API_KEY=your_cdp_api_key
+NEXT_PUBLIC_CDP_PROJECT_ID=your_cdp_project_id
 NEXT_PUBLIC_WALRUS_API_URL=https://api.walrus.xyz
 WALRUS_API_KEY=your_walrus_api_key
 SUPABASE_URL=your_supabase_url
@@ -265,6 +265,13 @@ npx hardhat run scripts/deploy-registry.ts --network baseSepolia
 - Check transaction status on [Base Sepolia Etherscan](https://sepolia.basescan.org/)
 - Review contract interactions and events
 - Enable debug mode in frontend for detailed error logs
+
+### CDP Setup Instructions
+1. Visit [CDP Portal](https://portal.cdp.coinbase.com/projects)
+2. Create or select a project
+3. Copy the Project ID from your dashboard
+4. Add it to your `.env.local` as `NEXT_PUBLIC_CDP_PROJECT_ID`
+5. Allowlist your local development URL (http://localhost:3000) in the Embedded Wallet Configuration
 
 ## Next Steps
 
