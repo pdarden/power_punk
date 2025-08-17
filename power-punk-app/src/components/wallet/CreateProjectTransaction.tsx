@@ -1,9 +1,9 @@
-'use client';
+"use client";
 
-import { useState, useCallback } from 'react';
-import { useSendEvmTransaction, useEvmAddress } from '@coinbase/cdp-hooks';
+import { useState, useCallback } from "react";
+import { useSendEvmTransaction, useEvmAddress } from "@coinbase/cdp-hooks";
 // Using regular HTML elements instead of CDP components
-import { parseUnits } from 'viem';
+import { parseUnits } from "viem";
 
 interface CreateProjectTransactionProps {
   projectData: {
@@ -26,7 +26,7 @@ interface CreateProjectTransactionProps {
 }
 
 // USDC contract address on Base mainnet
-const USDC_CONTRACT_ADDRESS = '0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913';
+const USDC_CONTRACT_ADDRESS = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 
 export default function CreateProjectTransaction({
   projectData,
@@ -40,7 +40,9 @@ export default function CreateProjectTransaction({
 
   // Project creation fee = contribution amount (project owner makes first contribution)
   const projectCreationFee = projectData.initialUnitCost;
-  const requiredContributions = Math.ceil(projectData.goalAmount / projectData.initialUnitCost);
+  const requiredContributions = Math.ceil(
+    projectData.goalAmount / projectData.initialUnitCost,
+  );
 
   const handleCreateProject = useCallback(
     async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -51,8 +53,8 @@ export default function CreateProjectTransaction({
 
       try {
         // First, store project data in Walrus
-        const { walrusClient } = await import('@/lib/walrus/client');
-        
+        const { walrusClient } = await import("@/lib/walrus/client");
+
         const projectDataForWalrus = {
           projectTitle: projectData.projectTitle,
           description: projectData.description,
@@ -64,21 +66,22 @@ export default function CreateProjectTransaction({
               units: 1,
               totalAmountPaid: projectCreationFee,
               timestamp: new Date().toISOString(),
-            }
+            },
           ],
           timeline: projectData.timeline,
           referrals: [],
           costCurve: projectData.costCurve,
         };
 
-        const walrusId = await walrusClient.storeProjectData(projectDataForWalrus);
+        const walrusId =
+          await walrusClient.storeProjectData(projectDataForWalrus);
 
         // Create the project agent wallet and get its address
-        const { createProjectAgent } = await import('@/lib/coinbase/agentkit');
+        const { createProjectAgent } = await import("@/lib/coinbase/agentkit");
         const projectId = `project_${Date.now()}`;
-        const walletAddress = await createProjectAgent(projectId);
+        const { walletAddress } = await createProjectAgent(projectId);
 
-        // Convert contribution amount to USDC wei (6 decimals) 
+        // Convert contribution amount to USDC wei (6 decimals)
         const contributionInWei = parseUnits(projectCreationFee.toString(), 6);
 
         // Send USDC contribution to project wallet (project owner's first contribution)
@@ -86,8 +89,8 @@ export default function CreateProjectTransaction({
         const { transactionHash } = await sendEvmTransaction({
           transaction: {
             to: USDC_CONTRACT_ADDRESS,
-            data: `0xa9059cbb000000000000000000000000${walletAddress.slice(2)}${contributionInWei.toString(16).padStart(64, '0')}`,
-            gas: 65000n,
+            data: `0xa9059cbb000000000000000000000000${walletAddress.slice(2)}${contributionInWei.toString(16).padStart(64, "0")}` as `0x${string}`,
+            gas: BigInt(65000),
             chainId: 84532, // Base Sepolia testnet (following docs)
             type: "eip1559",
           },
@@ -98,9 +101,9 @@ export default function CreateProjectTransaction({
         setTransactionHash(transactionHash);
 
         // Create the project via API
-        const response = await fetch('/api/projects', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const response = await fetch("/api/projects", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             projectData: {
               ...projectData,
@@ -110,7 +113,7 @@ export default function CreateProjectTransaction({
                   units: 1,
                   totalAmountPaid: projectCreationFee,
                   timestamp: new Date().toISOString(),
-                }
+                },
               ],
             },
             userId: evmAddress,
@@ -124,25 +127,30 @@ export default function CreateProjectTransaction({
             },
             projectType: projectData.projectType,
             transactionHash,
-            projectWalletAddress,
+            projectWalletAddress: walletAddress,
           }),
         });
 
         if (!response.ok) {
-          throw new Error('Failed to create project');
+          throw new Error("Failed to create project");
         }
 
         const result = await response.json();
         onSuccess?.(transactionHash, result.campaign.id);
-
       } catch (error) {
-        console.error('Project creation failed:', error);
-        alert('Project creation failed. Please try again.');
+        console.error("Project creation failed:", error);
+        alert("Project creation failed. Please try again.");
       } finally {
         setIsPending(false);
       }
     },
-    [evmAddress, sendEvmTransaction, projectData, projectCreationFee, onSuccess]
+    [
+      evmAddress,
+      sendEvmTransaction,
+      projectData,
+      projectCreationFee,
+      onSuccess,
+    ],
   );
 
   if (!evmAddress) {
@@ -170,8 +178,10 @@ export default function CreateProjectTransaction({
 
   return (
     <div className="p-4 border rounded-lg bg-white">
-      <h3 className="text-lg font-semibold mb-4">Create Project & Make First Contribution</h3>
-      
+      <h3 className="text-lg font-semibold mb-4">
+        Create Project & Make First Contribution
+      </h3>
+
       <div className="space-y-4">
         <div className="bg-blue-50 p-3 rounded-lg">
           <div className="flex justify-between text-sm mb-1">
@@ -184,7 +194,9 @@ export default function CreateProjectTransaction({
           </div>
           <div className="flex justify-between text-sm mb-1">
             <span>Contribution Amount:</span>
-            <span className="font-medium">${projectCreationFee} USDC per person</span>
+            <span className="font-medium">
+              ${projectCreationFee} USDC per person
+            </span>
           </div>
           <div className="flex justify-between text-sm">
             <span>Contributors Needed:</span>
@@ -193,10 +205,13 @@ export default function CreateProjectTransaction({
         </div>
 
         <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
-          <h4 className="font-medium text-yellow-800 mb-1">Your First Contribution</h4>
+          <h4 className="font-medium text-yellow-800 mb-1">
+            Your First Contribution
+          </h4>
           <p className="text-sm text-yellow-700">
-            As the project creator, you&apos;ll pay ${projectCreationFee} USDC to make the first contribution 
-            and activate your project. Other users will pay the same amount to contribute.
+            As the project creator, you&apos;ll pay ${projectCreationFee} USDC
+            to make the first contribution and activate your project. Other
+            users will pay the same amount to contribute.
           </p>
         </div>
 
@@ -205,7 +220,9 @@ export default function CreateProjectTransaction({
           disabled={isPending}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-medium py-3 px-4 rounded-lg transition-colors"
         >
-          {isPending ? 'Creating Project...' : `Create Project & Pay ${projectCreationFee} USDC`}
+          {isPending
+            ? "Creating Project..."
+            : `Create Project & Pay ${projectCreationFee} USDC`}
         </button>
 
         <p className="text-xs text-gray-500 text-center">
