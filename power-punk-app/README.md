@@ -5,7 +5,7 @@ A decentralized crowdfunding platform for community-driven climate projects incl
 ## Features
 
 - **Interactive Project Discovery**: Map and list views with advanced filtering by project type, location, and status
-- **Dual Escrow Options**: Choose between AI-powered AgentKit escrow or trustless smart contract escrow
+- **Dual Escrow Options**: Choose between AI-powered AgentKit escrow or individual trustless smart contract escrow
 - **Project Type Icons**: Visual identification with color-coded icons for all project categories  
 - **Referral System**: Earn rewards by referring new contributors
 - **Real-time Updates**: Live project cards with funding progress and contributor tracking
@@ -19,7 +19,7 @@ A decentralized crowdfunding platform for community-driven climate projects incl
 - **Maps**: Leaflet.js for interactive project mapping with popup cards
 - **Database**: Supabase for user accounts and campaign metadata
 - **Storage**: Walrus for immutable project data storage
-- **Smart Contracts**: GrassrootsCrowdfunding contract for trustless escrow
+- **Smart Contracts**: Individual CoopEscrow contracts per project with ProjectRegistry for tracking
 - **Payments**: 
   - Coinbase Embedded Wallets for seamless user authentication
   - Coinbase AgentKit for AI-managed project wallets
@@ -123,6 +123,11 @@ src/
 │   ├── map/              # Map components
 │   ├── projects/         # Project-related components
 │   └── wallet/           # Wallet connection components
+├── contracts/             # Smart contract integrations
+│   ├── abi/              # Contract ABIs
+│   ├── coopEscrow.ts     # Contract deployment and interaction helpers
+│   ├── registry.json     # Deployed contract addresses
+│   └── types.ts          # Contract type definitions
 ├── lib/                   # Core libraries
 │   ├── coinbase/         # Coinbase integrations
 │   ├── supabase/         # Database clients
@@ -140,11 +145,11 @@ src/
 3. Fill in project details including:
    - Project title and description
    - Project type (with visual icon selection)
-   - Escrow type: Agent Escrow (CDP AgentKit) or Smart Contract Escrow
+   - Escrow type: Agent Escrow (CDP AgentKit) or Individual Smart Contract Escrow
    - Location with coordinates
    - Funding goal and unit costs
    - Project timeline and deadline
-4. Deploy smart contract or create agent wallet based on escrow choice
+4. Deploy individual escrow contract or create agent wallet based on escrow choice
 
 ### Contributing to a Project
 

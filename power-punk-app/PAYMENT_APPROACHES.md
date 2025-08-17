@@ -13,74 +13,80 @@ Both approaches use **Coinbase Embedded Wallets** for user authentication and tr
 
 ---
 
-## Approach 1: Smart Contract Escrow (Simplified CoopEscrow with Registry)
+## Approach 1: Smart Contract Escrow (Individual CoopEscrow with Registry)
 
 ### Architecture
 
-The smart contract approach uses a **shared escrow pattern** with the simplified `CoopEscrow.sol` contract and `ProjectRegistry.sol` contract deployed on Base Sepolia. This streamlined architecture is more efficient than deploying individual contracts per project.
+The smart contract approach uses an **individual escrow pattern** where each project deploys its own `CoopEscrow.sol` contract, with all projects tracked via the shared `ProjectRegistry.sol` contract on Base Sepolia. This architecture provides maximum security isolation and project-specific configuration.
 
 ### Contract Features
 
-- **Shared Escrow Contract**: Single CoopEscrow contract handles multiple projects efficiently
-- **Project Registry**: On-chain registry tracking all projects with their metadata
+- **Individual Escrow Contracts**: Each project deploys its own CoopEscrow contract with custom parameters
+- **Project Registry**: On-chain registry tracking all projects and their escrow contract addresses  
 - **Creator-Controlled Finalization**: Only project creator can finalize and specify final amount to beneficiary
 - **Proportional Excess Refunds**: When funding exceeds goal, contributors get proportional refunds of excess
 - **Full Refunds for Failed Projects**: Complete refund system if goal not met
 - **Flexible ERC-20 Support**: Works with any ERC-20 token (USDC, PYUSD, etc.)
+- **Immutable Parameters**: Each escrow has project-specific goal, deadline, and beneficiary set at deployment
 
 ### Deployed Contracts (Base Sepolia)
 
-- **CoopEscrow**: `0x2f277A31BAA2fccc25Ad8927da6d15aC1D13C1e1`
 - **ProjectRegistry**: `0xEF64bF77B9B6428700fec109a4BcDB44e5434743`
 - **USDC Token**: `0x036CbD53842c5426634e7929541eC2318f3dCF7e`
+- **Individual CoopEscrow contracts**: Deployed per project with unique addresses
 
 ### Implementation Flow
 
 #### Project Creation
 ```typescript
 import { 
+  createEscrowDeploymentTransaction,
   createProjectRegistrationTransaction, 
-  createContributionTransactions,
-  getDeployedContracts 
+  parseUSDCAmount,
+  getNetworkConfig,
+  getRegistryAddress
 } from '@/contracts/coopEscrow';
 
-// 1. Get deployed contract addresses
-const contracts = getDeployedContracts(true); // Use testnet
+// 1. Deploy individual escrow contract for the project
+const networkConfig = getNetworkConfig();
+const deployParams = {
+  token: networkConfig.usdcAddress,
+  beneficiary: creatorAddress,
+  goal: parseUSDCAmount(goalAmount),
+  deadline: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60, // 30 days
+  minContribution: parseUSDCAmount(unitPrice),
+  creatorContribution: parseUSDCAmount(initialAmount) // Initial contribution in constructor
+};
 
-// 2. Register project in registry
+const deploymentTx = createEscrowDeploymentTransaction(deployParams);
+
+const { transactionHash: deployHash } = await sendEvmTransaction({
+  transaction: deploymentTx,
+  evmAccount: creatorAddress,
+  network: 'base-sepolia'
+});
+
+// 2. Wait for deployment receipt to get contract address
+const deploymentReceipt = await waitForTransactionReceipt({
+  hash: deployHash,
+  chainId: networkConfig.chainId,
+});
+
+const escrowAddress = deploymentReceipt.contractAddress;
+
+// 3. Register project in registry with deployed escrow address
 const ensName = projectTitle.toLowerCase().replace(/[^a-z0-9]/g, '-') + '.eth';
 const metaURI = `ipfs://walrus/${walrusId}`;
 
 const registrationTx = createProjectRegistrationTransaction(
   ensName,
-  contracts.CoopEscrow.address,
+  escrowAddress,
   metaURI
 );
 
 const { transactionHash: regHash } = await sendEvmTransaction({
   transaction: registrationTx,
-  evmAccount: userAddress,
-  network: 'base-sepolia'
-});
-
-// 3. Make initial creator contribution
-const { approvalTx, contributionTx } = createContributionTransactions({
-  contractAddress: contracts.CoopEscrow.address,
-  amount: parseUSDCAmount(initialAmount),
-  userAddress: userAddress,
-});
-
-// Approve USDC spending
-await sendEvmTransaction({
-  transaction: approvalTx,
-  evmAccount: userAddress,
-  network: 'base-sepolia'
-});
-
-// Make contribution
-await sendEvmTransaction({
-  transaction: contributionTx,
-  evmAccount: userAddress,
+  evmAccount: creatorAddress,
   network: 'base-sepolia'
 });
 ```
@@ -89,10 +95,10 @@ await sendEvmTransaction({
 ```typescript
 import { createContributionTransactions, parseUSDCAmount } from '@/contracts/coopEscrow';
 
-// 1. Create contribution transactions
+// 1. Create contribution transactions for project-specific escrow
 const contributionAmount = parseUSDCAmount(amount);
 const { approvalTx, contributionTx } = createContributionTransactions({
-  contractAddress: contracts.CoopEscrow.address,
+  contractAddress: projectEscrowAddress, // Individual project's escrow contract
   amount: contributionAmount,
   userAddress: userAddress,
 });
@@ -104,7 +110,7 @@ const { transactionHash: approvalHash } = await sendEvmTransaction({
   network: 'base-sepolia'
 });
 
-// 3. Make contribution to shared escrow
+// 3. Make contribution to project's individual escrow
 const { transactionHash: contributionHash } = await sendEvmTransaction({
   transaction: contributionTx,
   evmAccount: userAddress,
@@ -148,20 +154,21 @@ if (totalRaised >= goal) {
 ```
 
 ### Advantages
-- **Shared Escrow Efficiency**: Single contract serves multiple projects, reducing deployment costs
-- **Registry Pattern**: On-chain project tracking with metadata storage
+- **Maximum Security Isolation**: Each project has its own escrow contract with no cross-project dependencies
+- **Registry Pattern**: On-chain project tracking with metadata storage and escrow address mapping
 - **Minimal & Trustless**: Simplified, secure escrow with no intermediary required
-- **Transparent**: All logic on-chain and auditable
+- **Transparent**: All logic on-chain and auditable per project
 - **Creator Control**: Project creator decides final amount to beneficiary
 - **Flexible Refunds**: Proportional excess refunds + full refunds for failed projects
-- **Gas Efficient**: Streamlined implementation with fewer features
-- **Pre-deployed Contracts**: No deployment wait time, immediate project creation
+- **Project-Specific Parameters**: Custom goal, deadline, and minimum contribution per project
+- **No Single Point of Failure**: Individual contracts isolate risks between projects
+- **Immutable Configuration**: Project parameters locked at deployment for transparency
 
 ### Considerations
-- **Simplified Logic**: No complex reward calculations or referral systems
+- **Deployment Costs**: Each project requires contract deployment (higher gas cost)
 - **Gas Costs**: Users pay gas for transactions
 - **Creator Trust**: Requires trust in creator to finalize appropriately
-- **Shared Contract**: Single point of failure for all projects (mitigated by auditing)
+- **Deployment Complexity**: Requires transaction receipt handling and contract address management
 - **No Automatic Execution**: Manual finalization required by creator
 
 ---
@@ -327,10 +334,10 @@ import {
 
 const { sendEvmTransaction } = useSendEvmTransaction();
 
-// Contract escrow flow (shared CoopEscrow)
+// Contract escrow flow (individual project CoopEscrow)
 if (escrowType === 'contract') {
   const { approvalTx, contributionTx } = createContributionTransactions({
-    contractAddress: escrowAddress,
+    contractAddress: projectEscrowAddress, // Project-specific escrow contract address
     amount: contributionAmount,
     userAddress: evmAddress,
   });

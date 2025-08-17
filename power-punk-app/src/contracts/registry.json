@@ -2,12 +2,6 @@
   "base": {
     "chainId": 8453,
     "contracts": {
-      "CoopEscrow": {
-        "address": "",
-        "blockNumber": 0,
-        "abi": "./abi/CoopEscrow.json",
-        "version": "1.0.0"
-      },
       "ProjectRegistry": {
         "address": "",
         "blockNumber": 0,
@@ -19,12 +13,6 @@
   "baseSepolia": {
     "chainId": 84532,
     "contracts": {
-      "CoopEscrow": {
-        "address": "0x2f277A31BAA2fccc25Ad8927da6d15aC1D13C1e1",
-        "blockNumber": 15000000,
-        "abi": "./abi/CoopEscrow.json",
-        "version": "1.0.0"
-      },
       "ProjectRegistry": {
         "address": "0xEF64bF77B9B6428700fec109a4BcDB44e5434743",
         "blockNumber": 15000001,
